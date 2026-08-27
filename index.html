@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="color-scheme" content="light" />
+<title>文件索引列表</title>
+<style>
+  /* ============ 设计变量 ============ */
+  :root{
+    --bg:#F6F0E4;
+    --bg-2:#FBF6EC;
+    --card:#FFFDF7;
+    --ink:#2B251D;
+    --ink-soft:#6E6353;
+    --ink-faint:#A29683;
+    --line:#E9DFCB;
+    --line-strong:#D8CBB2;
+    --accent:#E05A2E;         /* 主强调：陶土橙 */
+    --accent-2:#E09A3E;       /* 金黄 */
+    --underline:#E8734A;
+    --shadow-sm:0 1px 2px rgba(70,52,24,.06),0 4px 14px -6px rgba(70,52,24,.12);
+    --shadow-lg:0 2px 4px rgba(70,52,24,.08),0 24px 48px -18px rgba(90,62,24,.28);
+    --radius:18px;
+    --font-disp:Georgia,'Times New Roman','Songti SC','Noto Serif CJK SC','SimSun',serif;
+    --font-body:'PingFang SC','Microsoft YaHei','Noto Sans CJK SC','Helvetica Neue',Arial,sans-serif;
+    /* 类型颜色（鲜活、暖色系，避开蓝紫机械风） */
+    --c-archive:#E09A3E;
+    --c-pdf:#E25C5C;
+    --c-document:#3E9BB2;
+    --c-sheet:#43A07A;
+    --c-slide:#E8734A;
+    --c-image:#E05A8F;
+    --c-video:#B4549C;
+    --c-audio:#9B7BDE;
+    --c-code:#6E8B3D;
+    --c-text:#8A7A66;
+  }
+
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{
+    font-family:var(--font-body);
+    color:var(--ink);
+    background:var(--bg);
+    min-height:100vh;
+    -webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
+  }
+
+  /* ============ 背景氛围 ============ */
+  .bg-decor{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+  .bg-decor .glow{position:absolute;border-radius:50%;filter:blur(70px);opacity:.5}
+  .glow.g1{width:560px;height:560px;top:-180px;right:-120px;background:radial-gradient(circle,rgba(224,154,62,.5),transparent 65%)}
+  .glow.g2{width:520px;height:520px;bottom:-200px;left:-160px;background:radial-gradient(circle,rgba(67,160,122,.32),transparent 65%)}
+  .glow.g3{width:420px;height:420px;top:38%;left:52%;background:radial-gradient(circle,rgba(224,90,47,.22),transparent 65%);animation:drift 22s ease-in-out infinite}
+  .bg-decor .dots{position:absolute;inset:0;background-image:radial-gradient(rgba(90,66,30,.10) 1px,transparent 1.5px);background-size:26px 26px;mask-image:radial-gradient(ellipse 90% 70% at 50% 0%,#000 30%,transparent 75%)}
+  .bg-decor .grain{position:absolute;inset:0;opacity:.045;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E")}
+
+  @keyframes drift{
+    0%,100%{transform:translate(0,0) scale(1)}
+    50%{transform:translate(-40px,30px) scale(1.08)}
+  }
+
+  .wrap{position:relative;z-index:1;max-width:1180px;margin:0 auto;padding:0 28px}
+
+  /* ============ 首屏 Header ============ */
+  .hero{padding:64px 0 34px;position:relative}
+  .hero-inner{position:relative}
+  .watermark{
+    position:absolute;top:-30px;right:-20px;
+    font-family:var(--font-disp);font-weight:700;font-size:clamp(120px,20vw,220px);
+    line-height:1;letter-spacing:.02em;
+    color:transparent;-webkit-text-stroke:1.5px rgba(90,66,30,.10);
+    user-select:none;pointer-events:none;white-space:nowrap;
+  }
+  .eyebrow{
+    display:inline-flex;align-items:center;gap:10px;
+    font-size:13px;font-weight:700;letter-spacing:.28em;text-transform:uppercase;
+    color:var(--accent);margin-bottom:18px;
+  }
+  .eyebrow::before{content:"";width:34px;height:3px;border-radius:2px;background:var(--accent)}
+  .title{
+    font-family:var(--font-disp);
+    font-size:clamp(42px,7vw,76px);
+    font-weight:900;line-height:1.05;letter-spacing:.01em;
+    color:var(--ink);
+  }
+  .title-stroke{width:min(360px,80%);height:auto;margin:6px 0 0 8px;display:block}
+  .title-stroke path{stroke:var(--underline);stroke-width:7;stroke-linecap:round;fill:none;
+    stroke-dasharray:340;stroke-dashoffset:340;animation:draw 1.1s .35s cubic-bezier(.4,0,.2,1) forwards}
+  @keyframes draw{to{stroke-dashoffset:0}}
+
+  /* 统计区 */
+  .stats{margin-top:30px;display:grid;grid-template-columns:repeat(4,1fr);gap:14px;max-width:760px}
+  .stat{position:relative;background:rgba(255,253,247,.72);border:1px solid var(--line);
+    border-radius:16px;padding:16px 18px;box-shadow:var(--shadow-sm);overflow:hidden;
+    animation:rise .7s both}
+  .stat:nth-child(1){animation-delay:.10s}.stat:nth-child(2){animation-delay:.18s}
+  .stat:nth-child(3){animation-delay:.26s}.stat:nth-child(4){animation-delay:.34s}
+  .stat::before{content:"";position:absolute;top:0;left:0;right:0;height:3px;
+    background:linear-gradient(90deg,var(--accent),var(--accent-2))}
+  .stat:nth-child(2)::before{background:linear-gradient(90deg,#43A07A,#6E8B3D)}
+  .stat:nth-child(3)::before{background:linear-gradient(90deg,#E05A8F,#B4549C)}
+  .stat:nth-child(4)::before{background:linear-gradient(90deg,#3E9BB2,#9B7BDE)}
+  .stat-num{font-family:var(--font-body);font-weight:800;font-size:clamp(26px,3.4vw,36px);line-height:1;
+    color:var(--ink);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+  .stat-label{margin-top:8px;font-size:12.5px;letter-spacing:.12em;color:var(--ink-faint);font-weight:500}
+
+  /* ============ 工具栏 ============ */
+  .toolbar{display:flex;gap:14px;align-items:stretch;flex-wrap:wrap;margin:18px 0 6px}
+  .search-box{flex:1 1 320px;display:flex;align-items:center;gap:10px;
+    background:var(--card);border:1.5px solid var(--line);border-radius:14px;padding:0 16px;
+    box-shadow:var(--shadow-sm);transition:border-color .25s,box-shadow .25s}
+  .search-box:focus-within{border-color:var(--accent);box-shadow:0 0 0 4px rgba(224,90,47,.12)}
+  .search-box svg{width:18px;height:18px;stroke:var(--ink-faint);flex:none}
+  .search-box input{border:none;outline:none;background:transparent;width:100%;padding:14px 0;
+    font-size:15px;font-family:var(--font-body);color:var(--ink)}
+  .search-box input::placeholder{color:var(--ink-faint)}
+  .sort-box{display:flex;align-items:center;gap:10px;background:var(--card);border:1.5px solid var(--line);
+    border-radius:14px;padding:0 12px 0 16px;box-shadow:var(--shadow-sm)}
+  .sort-box span{font-size:13px;color:var(--ink-faint);font-weight:500}
+  .sort-box select{border:none;outline:none;background:transparent;font-size:14px;font-weight:700;
+    font-family:var(--font-body);color:var(--ink);padding:14px 4px;cursor:pointer}
+  .dir-btn{display:inline-flex;align-items:center;justify-content:center;width:48px;
+    background:var(--card);border:1.5px solid var(--line);border-radius:14px;cursor:pointer;
+    box-shadow:var(--shadow-sm);transition:all .25s}
+  .dir-btn svg{width:18px;height:18px;stroke:var(--ink-soft)}
+  .dir-btn:hover{border-color:var(--accent);transform:translateY(-1px)}
+  .dir-btn .arr{transition:transform .3s}
+  .dir-btn.flipped .arr{transform:rotate(180deg)}
+
+  /* 筛选 Chips */
+  .chips{display:flex;gap:9px;flex-wrap:wrap;margin:16px 0 2px}
+  .chips-label{flex-basis:100%;font-size:12px;letter-spacing:.18em;color:var(--ink-faint);
+    font-weight:700;margin:2px 0 4px}
+  .chip{border:1.5px solid var(--line);background:var(--card);color:var(--ink-soft);
+    padding:8px 15px;border-radius:999px;font-size:13.5px;font-weight:500;cursor:pointer;
+    display:inline-flex;align-items:center;gap:7px;transition:all .25s;box-shadow:var(--shadow-sm);
+    font-family:var(--font-body)}
+  .chip .dot{width:8px;height:8px;border-radius:50%;background:currentColor;opacity:.55}
+  .chip:hover{border-color:var(--line-strong);transform:translateY(-2px)}
+  .chip.active{color:#fff;border-color:transparent;box-shadow:0 8px 18px -8px rgba(70,52,24,.4);
+    animation:chipIn .3s cubic-bezier(.2,.8,.2,1)}
+  .chip.folder.active{background:var(--ink)}
+  @keyframes chipIn{0%{transform:scale(.85)}100%{transform:scale(1)}}
+
+  .result-line{margin:18px 0 4px;font-size:13px;color:var(--ink-faint)}
+  .result-line b{color:var(--accent);font-weight:700}
+
+  /* ============ 卡片网格 ============ */
+  .grid{display:flex;flex-direction:column;gap:10px;padding:8px 0 40px}
+  /* 文件夹分组 */
+  .group{animation:rise .6s both}
+  .group-head{display:flex;align-items:center;gap:12px;padding-bottom:12px;
+    border-bottom:1.5px dashed var(--line-strong);margin:22px 0 18px}
+  .group-icon{width:34px;height:34px;border-radius:11px;display:grid;place-items:center;
+    background:color-mix(in srgb,var(--g,var(--ink)) 13%,#fff);flex:none;
+    border:1px solid color-mix(in srgb,var(--g,var(--ink)) 32%,transparent);
+    box-shadow:0 5px 12px -6px color-mix(in srgb,var(--g,var(--ink)) 45%,transparent)}
+  .group-icon svg{width:19px;height:19px}
+  .group-icon svg *{fill:var(--g,var(--ink));stroke:none}
+  .group-title{font-family:var(--font-disp);font-size:clamp(19px,2.6vw,24px);font-weight:700;
+    letter-spacing:.02em;color:var(--ink)}
+  .group-count{margin-left:auto;font-size:12.5px;color:var(--ink-soft);font-weight:600;
+    background:var(--card);border:1px solid var(--line);padding:5px 13px;border-radius:999px;white-space:nowrap}
+  .group-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(252px,1fr));gap:18px}
+  .card{position:relative;background:var(--card);border:1.5px solid var(--line);border-radius:var(--radius);
+    padding:18px 18px 15px;cursor:pointer;overflow:hidden;box-shadow:var(--shadow-sm);
+    transition:transform .35s cubic-bezier(.2,.8,.25,1),box-shadow .35s,border-color .35s;
+    animation:rise .6s cubic-bezier(.2,.8,.2,1) both;display:flex;flex-direction:column;gap:12px}
+  @keyframes rise{from{opacity:0;transform:translateY(22px) scale(.97)}to{opacity:1;transform:none}}
+  .card:hover{transform:translateY(-6px);border-color:var(--line-strong);box-shadow:var(--shadow-lg)}
+  /* 光泽扫过 */
+  .card::before{content:"";position:absolute;top:0;left:-80%;width:60%;height:100%;
+    background:linear-gradient(105deg,transparent,rgba(255,255,255,.75),transparent);
+    transform:skewX(-20deg);transition:left .7s ease;pointer-events:none}
+  .card:hover::before{left:130%}
+  .card::after{content:"";position:absolute;inset:0;border-radius:var(--radius);
+    box-shadow:inset 0 0 0 0 var(--c,transparent);transition:box-shadow .4s;pointer-events:none}
+  .card:hover::after{box-shadow:inset 0 0 0 2.5px var(--c,transparent)}
+
+  .card-top{display:flex;align-items:flex-start;gap:13px}
+  .icon-tile{width:52px;height:52px;border-radius:15px;flex:none;display:grid;place-items:center;
+    background:#fff;
+    border:1px solid var(--line);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.9),0 6px 14px -8px color-mix(in srgb,var(--c) 50%,transparent);
+    transition:transform .35s cubic-bezier(.2,.8,.3,1.4),box-shadow .35s}
+  .card:hover .icon-tile{transform:rotate(-6deg) scale(1.06)}
+  .icon-tile svg{width:32px;height:32px}
+  .badge{margin-left:auto;font-size:11.5px;font-weight:700;letter-spacing:.05em;
+    color:var(--c);background:color-mix(in srgb,var(--c) 13%,#fff);
+    border:1px solid color-mix(in srgb,var(--c) 30%,transparent);
+    padding:4px 9px;border-radius:999px;white-space:nowrap}
+  .file-name{font-size:15px;font-weight:700;line-height:1.42;color:var(--ink);
+    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+    word-break:break-all}
+  .card-meta{display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--ink-faint)}
+  .card-meta .size{font-family:var(--font-body);font-weight:700;color:var(--ink-soft);font-variant-numeric:tabular-nums}
+  .card-meta .sep{opacity:.5}
+  .card-foot{margin-top:auto;display:flex;align-items:center;gap:8px;padding-top:11px;
+    border-top:1px dashed var(--line)}
+  .folder-chip{display:inline-flex;align-items:center;gap:6px;min-width:0;flex:1;
+    font-size:12.5px;color:var(--ink-soft);font-weight:500}
+  .folder-chip svg{width:14px;height:14px;flex:none}
+  .folder-chip svg *{fill:var(--c,var(--ink-faint));stroke:none}
+  .folder-chip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .copy-btn{flex:none;width:30px;height:30px;border-radius:9px;border:1px solid var(--line);
+    background:transparent;cursor:pointer;display:grid;place-items:center;transition:all .25s}
+  .copy-btn svg{width:14px;height:14px}
+  .copy-btn svg *{fill:var(--ink-faint);stroke:none}
+  .copy-btn:hover{background:var(--c);border-color:transparent}
+  .copy-btn:hover svg *{fill:#fff}
+
+  /* 空状态 */
+  .empty{display:none;text-align:center;padding:70px 20px;color:var(--ink-faint)}
+  .empty.show{display:block;animation:rise .5s both}
+  .empty .emoji{font-size:56px;display:block;margin-bottom:14px;filter:saturate(.9)}
+  .empty p{font-size:15px}
+
+  /* ============ 页脚 ============ */
+  footer{padding:26px 0 44px;border-top:1px solid var(--line);color:var(--ink-faint);
+    font-size:12.5px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+  footer b{color:var(--ink-soft)}
+
+  /* Toast */
+  .toast{position:fixed;left:50%;bottom:34px;transform:translate(-50%,24px);opacity:0;
+    background:var(--ink);color:#FBF6EC;padding:11px 20px;border-radius:12px;font-size:13.5px;
+    font-weight:500;box-shadow:var(--shadow-lg);z-index:99;transition:all .35s cubic-bezier(.2,.8,.2,1);
+    pointer-events:none}
+  .toast.show{opacity:1;transform:translate(-50%,0)}
+
+  /* 滚动条 */
+  ::-webkit-scrollbar{width:11px}
+  ::-webkit-scrollbar-thumb{background:var(--line-strong);border-radius:8px;border:3px solid var(--bg)}
+  ::-webkit-scrollbar-track{background:transparent}
+
+  :focus-visible{outline:2.5px solid var(--accent);outline-offset:2px;border-radius:6px}
+
+  @media (max-width:640px){
+    .stats{grid-template-columns:repeat(2,1fr)}
+    .hero{padding:44px 0 26px}
+    .watermark{display:none}
+  }
+</style>
+</head>
+<body>
+
+<div class="bg-decor">
+  <div class="glow g1"></div>
+  <div class="glow g2"></div>
+  <div class="glow g3"></div>
+  <div class="dots"></div>
+  <div class="grain"></div>
+</div>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="hero-inner">
+      <span class="watermark" aria-hidden="true">FILES</span>
+      <p class="eyebrow">Local File Archive</p>
+      <h1 class="title">文件索引列表</h1>
+      <svg class="title-stroke" viewBox="0 0 360 26" aria-hidden="true">
+        <path d="M5 15 C 55 5, 105 21, 155 13 S 265 20, 355 9" fill="none"/>
+      </svg>
+
+      <div class="stats">
+        <div class="stat">
+          <div class="stat-num" id="stat-count" data-count="0">0</div>
+          <div class="stat-label">文件总数</div>
+        </div>
+        <div class="stat">
+          <div class="stat-num" id="stat-size">0</div>
+          <div class="stat-label">总大小</div>
+        </div>
+        <div class="stat">
+          <div class="stat-num" id="stat-folder" data-count="0">0</div>
+          <div class="stat-label">子文件夹</div>
+        </div>
+        <div class="stat">
+          <div class="stat-num" id="stat-type" data-count="0">0</div>
+          <div class="stat-label">文件类型</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="toolbar">
+    <div class="search-box">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+      <input id="search" type="text" placeholder="搜索文件名、类型或路径…" autocomplete="off" />
+    </div>
+    <div class="sort-box">
+      <span>排序</span>
+      <select id="sort">
+        <option value="name">名称</option>
+        <option value="size">大小</option>
+        <option value="date">日期</option>
+      </select>
+    </div>
+    <button class="dir-btn" id="dirBtn" title="切换升降序" aria-label="切换排序方向">
+      <svg class="arr" viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+    </button>
+  </section>
+
+  <section class="chips" id="folderChips">
+    <div class="chips-label">浏览目录</div>
+  </section>
+
+  <section class="chips" id="typeChips">
+    <div class="chips-label">按类型筛选</div>
+  </section>
+
+  <p class="result-line" id="resultLine"></p>
+
+  <section class="grid" id="grid"></section>
+
+  <div class="empty" id="empty">
+    <span class="emoji">🔍</span>
+    <p>没有找到匹配的文件，换个关键词试试吧</p>
+  </div>
+</main>
+
+<footer class="wrap">
+  <span>文件索引 · 共 <b id="footCount">0</b> 个文件</span>
+</footer>
+
+<div class="toast" id="toast">已复制路径</div>
+
+<script>
+/* ============================================================
+   文件数据（name 文件名 / dir 所在子目录（"" 表示根目录）/ size 字节 / date 修改日期）
+   本数组由「生成索引」工具扫描目录后自动写入，请勿手动修改。
+   文件变更后：运行「生成索引.cmd」重新生成，再部署到云端即可。
+   ============================================================ */
+
+const FILES = [
+  {n:"产品说明.txt", d:"", s:481, t:"2026-08-27"},
+  {n:"项目配置.json", d:"", s:191, t:"2026-08-27"},
+  {n:"项目README.md", d:"", s:420, t:"2026-08-27"},
+  {n:"新建 Microsoft Excel 工作表.xlsx", d:"", s:6601, t:"2026-08-27"},
+  {n:"样式.css", d:"代码", s:382, t:"2026-08-27"},
+  {n:"主程序.js", d:"代码", s:313, t:"2026-08-27"},
+  {n:"品牌图标.svg", d:"图片", s:442, t:"2026-08-27"},
+  {n:"会议记录.md", d:"文档", s:381, t:"2026-08-27"},
+];
+
+/* 数据源：默认使用内置数据（生成器写入）；若由 server.js 提供页面则自动请求 /api/files 实时更新 */
+let DATA = FILES;
+let liveMode = "";
+
+/* ============ 类型映射 ============ */
+const EXT_MAP = {
+  archive:["zip","rar","7z","tar","gz"],
+  pdf:["pdf"],
+  document:["doc","docx"],
+  sheet:["xls","xlsx","csv"],
+  slide:["ppt","pptx"],
+  image:["png","jpg","jpeg","gif","webp","svg","bmp"],
+  video:["mp4","mov","avi","mkv","wmv"],
+  audio:["mp3","flac","wav","aac","ogg","m4a"],
+  code:["js","ts","py","css","html","json","xml","sh","java","go","rs"],
+  text:["txt","md","log","ini"]
+};
+const CAT_LABEL = {archive:"压缩包", pdf:"PDF", document:"文档", sheet:"表格", slide:"演示",
+  image:"图片", video:"视频", audio:"音频", code:"代码", text:"文本"};
+const CAT_COLOR = {archive:"var(--c-archive)", pdf:"var(--c-pdf)", document:"var(--c-document)",
+  sheet:"var(--c-sheet)", slide:"var(--c-slide)", image:"var(--c-image)", video:"var(--c-video)",
+  audio:"var(--c-audio)", code:"var(--c-code)", text:"var(--c-text)"};
+
+/* ============ 图标（vscode-icons 彩色真实文件图标，已内联，离线可用） ============ */
+const ICONS = {
+  archive:"<defs><linearGradient id=\"SVGXr4mrHrF\" x1=\"17.65\" x2=\"21.099\" y1=\"26.056\" y2=\"26.056\" gradientUnits=\"userSpaceOnUse\"><stop offset=\"0\" stop-color=\"#4d4d4d\"/><stop offset=\".5\" stop-color=\"#fff\"/><stop offset=\"1\" stop-color=\"#4d4d4d\"/></linearGradient><linearGradient id=\"SVG5oyStdai\" x1=\"17.65\" x2=\"21.099\" y1=\"23.756\" y2=\"23.756\" href=\"#SVGXr4mrHrF\"/><linearGradient id=\"SVG9QsNwcZU\" x1=\"17.65\" x2=\"21.099\" y1=\"21.456\" y2=\"21.456\" href=\"#SVGXr4mrHrF\"/><linearGradient id=\"SVG1kIgneZE\" x1=\"17.65\" x2=\"21.099\" y1=\"19.156\" y2=\"19.156\" href=\"#SVGXr4mrHrF\"/><linearGradient id=\"SVGp2oQjdFa\" x1=\"17.65\" x2=\"21.099\" y1=\"16.857\" y2=\"16.857\" href=\"#SVGXr4mrHrF\"/><linearGradient id=\"SVGAFV8AN5B\" x1=\"17.65\" x2=\"21.099\" y1=\"14.557\" y2=\"14.557\" href=\"#SVGXr4mrHrF\"/><linearGradient id=\"SVGRkU6lbfc\" x1=\"17.65\" x2=\"21.099\" y1=\"12.257\" y2=\"12.257\" href=\"#SVGXr4mrHrF\"/><linearGradient id=\"SVGWUBOGcFP\" x1=\"17.65\" x2=\"21.099\" y1=\"9.957\" y2=\"9.957\" href=\"#SVGXr4mrHrF\"/><linearGradient id=\"SVGFcdVfdXh\" x1=\"17.65\" x2=\"21.099\" y1=\"7.657\" y2=\"7.657\" href=\"#SVGXr4mrHrF\"/><linearGradient id=\"SVGLioYKc8j\" x1=\"16.237\" x2=\"19.686\" y1=\"27.217\" y2=\"27.217\" href=\"#SVGXr4mrHrF\"/><linearGradient id=\"SVGIx7REdei\" x1=\"16.237\" x2=\"19.686\" y1=\"24.918\" y2=\"24.918\" href=\"#SVGXr4mrHrF\"/><linearGradient id=\"SVGownHpeLf\" x1=\"16.237\" x2=\"19.686\" y1=\"22.618\" y2=\"22.618\" href=\"#SVGXr4mrHrF\"/><linearGradient id=\"SVGZ4gzmcVN\" x1=\"16.237\" x2=\"19.686\" y1=\"20.318\" y2=\"20.318\" href=\"#SVGXr4mrHrF\"/><linearGradient id=\"SVGhAblbd0u\" x1=\"16.237\" x2=\"19.686\" y1=\"18.018\" y2=\"18.018\" href=\"#SVGXr4mrHrF\"/><linearGradient id=\"SVGBzD5PbgA\" x1=\"17.65\" x2=\"21.099\" y1=\"28.356\" y2=\"28.356\" href=\"#SVGXr4mrHrF\"/><linearGradient id=\"SVGcXb6lbYS\" x1=\"16.237\" x2=\"19.686\" y1=\"15.718\" y2=\"15.718\" href=\"#SVGXr4mrHrF\"/><linearGradient id=\"SVGKF6nobvx\" x1=\"16.237\" x2=\"19.686\" y1=\"13.419\" y2=\"13.419\" href=\"#SVGXr4mrHrF\"/><linearGradient id=\"SVGrU8zSORM\" x1=\"16.237\" x2=\"19.686\" y1=\"11.119\" y2=\"11.119\" href=\"#SVGXr4mrHrF\"/><linearGradient id=\"SVGuFw9gbIu\" x1=\"16.237\" x2=\"19.686\" y1=\"8.819\" y2=\"8.819\" href=\"#SVGXr4mrHrF\"/><linearGradient id=\"SVGXh7zWblD\" x1=\"16.237\" x2=\"19.686\" y1=\"29.514\" y2=\"29.514\" href=\"#SVGXr4mrHrF\"/><linearGradient id=\"SVGmzaoUw6y\" x1=\"16.985\" x2=\"20.446\" y1=\"11.196\" y2=\"11.196\" href=\"#SVGXr4mrHrF\"/><linearGradient id=\"SVGkZYaOeHC\" x1=\"18.096\" x2=\"19.336\" y1=\"5.329\" y2=\"5.329\" href=\"#SVGXr4mrHrF\"/><linearGradient id=\"SVGVKO9QdOI\" x1=\"16.029\" x2=\"21.403\" y1=\"5.591\" y2=\"5.591\" href=\"#SVGXr4mrHrF\"/></defs><path fill=\"#c09553\" d=\"M27.667 27.667V17.333L23 15V2H4.333v28h23.334Zm-4.667 0v-9.111l2.333 1.222v7.889Z\"/><path fill=\"url(#SVGXr4mrHrF)\" d=\"M17.65 25.559h3.45v.993h-3.45z\"/><path fill=\"url(#SVG5oyStdai)\" d=\"M17.65 23.26h3.45v.993h-3.45z\"/><path fill=\"url(#SVG9QsNwcZU)\" d=\"M17.65 20.96h3.45v.993h-3.45z\"/><path fill=\"url(#SVG1kIgneZE)\" d=\"M17.65 18.66h3.45v.993h-3.45z\"/><path fill=\"url(#SVGp2oQjdFa)\" d=\"M17.65 16.36h3.45v.993h-3.45z\"/><path fill=\"url(#SVGAFV8AN5B)\" d=\"M17.65 14.06h3.45v.993h-3.45z\"/><path fill=\"url(#SVGRkU6lbfc)\" d=\"M17.65 11.76h3.45v.993h-3.45z\"/><path fill=\"url(#SVGWUBOGcFP)\" d=\"M17.65 9.461h3.45v.993h-3.45z\"/><path fill=\"url(#SVGFcdVfdXh)\" d=\"M17.65 7.161h3.45v.993h-3.45z\"/><path fill=\"url(#SVGLioYKc8j)\" d=\"M16.237 26.721h3.45v.993h-3.45z\"/><path fill=\"url(#SVGIx7REdei)\" d=\"M16.237 24.421h3.45v.993h-3.45z\"/><path fill=\"url(#SVGownHpeLf)\" d=\"M16.237 22.121h3.45v.993h-3.45z\"/><path fill=\"url(#SVGZ4gzmcVN)\" d=\"M16.237 19.821h3.45v.993h-3.45z\"/><path fill=\"url(#SVGhAblbd0u)\" d=\"M16.237 17.522h3.45v.993h-3.45z\"/><path fill=\"url(#SVGBzD5PbgA)\" d=\"M17.65 27.859h3.45v.993h-3.45z\"/><path fill=\"url(#SVGcXb6lbYS)\" d=\"M16.237 15.222h3.45v.993h-3.45z\"/><path fill=\"url(#SVGKF6nobvx)\" d=\"M16.237 12.922h3.45v.993h-3.45z\"/><path fill=\"url(#SVGrU8zSORM)\" d=\"M16.237 10.622h3.45v.993h-3.45z\"/><path fill=\"url(#SVGuFw9gbIu)\" d=\"M16.237 8.322h3.45v.993h-3.45z\"/><path fill=\"url(#SVGXh7zWblD)\" d=\"M16.237 29.018h3.45v.993h-3.45z\"/><path fill=\"url(#SVGmzaoUw6y)\" d=\"M20.1 5.911a.554.554 0 0 0-.548-.53h-.009v.557h.092l.206 2.514h-2.252l.211-2.514h.094v-.557h-.044a.55.55 0 0 0-.547.53l-.314 10.569a.513.513 0 0 0 .515.531h2.432a.51.51 0 0 0 .513-.531Zm-1.384 10.5a1.171 1.171 0 1 1 1.171-1.171a1.17 1.17 0 0 1-1.171 1.168Z\"/><path fill=\"url(#SVGkZYaOeHC)\" d=\"M18.096 3.802h1.24v3.054h-1.24z\"/><path fill=\"url(#SVGVKO9QdOI)\" d=\"M21.4 4.56a2.55 2.55 0 0 0-2.549-2.549h-.276a2.55 2.55 0 0 0-2.436 3.3v.006a8 8 0 0 1 .261 2.561a1.8 1.8 0 0 0 .641 1.271l.109-3.441a.593.593 0 0 1 .6-.551h.135v-1.57h1.653v1.57h.1a.6.6 0 0 1 .605.551l.121 3.462a1.8 1.8 0 0 0 .666-1.292V7.72a7.7 7.7 0 0 1 .236-2.359a2.5 2.5 0 0 0 .134-.801\"/>",
+  pdf:"<path fill=\"#909090\" d=\"m24.1 2.072l5.564 5.8v22.056H8.879V30h20.856V7.945z\"/><path fill=\"#f4f4f4\" d=\"M24.031 2H8.808v27.928h20.856V7.873z\"/><path fill=\"#7a7b7c\" d=\"M8.655 3.5h-6.39v6.827h20.1V3.5z\"/><path fill=\"#dd2025\" d=\"M22.472 10.211H2.395V3.379h20.077z\"/><path fill=\"#464648\" d=\"M9.052 4.534H7.745v4.8h1.028V7.715L9 7.728a2 2 0 0 0 .647-.117a1.4 1.4 0 0 0 .493-.291a1.2 1.2 0 0 0 .335-.454a2.1 2.1 0 0 0 .105-.908a2.2 2.2 0 0 0-.114-.644a1.17 1.17 0 0 0-.687-.65a2 2 0 0 0-.409-.104a2 2 0 0 0-.319-.026m-.189 2.294h-.089v-1.48h.193a.57.57 0 0 1 .459.181a.92.92 0 0 1 .183.558c0 .246 0 .469-.222.626a.94.94 0 0 1-.524.114m3.671-2.306c-.111 0-.219.008-.295.011L12 4.538h-.78v4.8h.918a2.7 2.7 0 0 0 1.028-.175a1.7 1.7 0 0 0 .68-.491a1.9 1.9 0 0 0 .373-.749a3.7 3.7 0 0 0 .114-.949a4.4 4.4 0 0 0-.087-1.127a1.8 1.8 0 0 0-.4-.733a1.6 1.6 0 0 0-.535-.4a2.4 2.4 0 0 0-.549-.178a1.3 1.3 0 0 0-.228-.017m-.182 3.937h-.1V5.392h.013a1.06 1.06 0 0 1 .6.107a1.2 1.2 0 0 1 .324.4a1.3 1.3 0 0 1 .142.526c.009.22 0 .4 0 .549a3 3 0 0 1-.033.513a1.8 1.8 0 0 1-.169.5a1.1 1.1 0 0 1-.363.36a.67.67 0 0 1-.416.106m5.08-3.915H15v4.8h1.028V7.434h1.3v-.892h-1.3V5.43h1.4v-.892\"/><path fill=\"#dd2025\" d=\"M21.781 20.255s3.188-.578 3.188.511s-1.975.646-3.188-.511m-2.357.083a7.5 7.5 0 0 0-1.473.489l.4-.9c.4-.9.815-2.127.815-2.127a14 14 0 0 0 1.658 2.252a13 13 0 0 0-1.4.288Zm-1.262-6.5c0-.949.307-1.208.546-1.208s.508.115.517.939a10.8 10.8 0 0 1-.517 2.434a4.4 4.4 0 0 1-.547-2.162Zm-4.649 10.516c-.978-.585 2.051-2.386 2.6-2.444c-.003.001-1.576 3.056-2.6 2.444M25.9 20.895c-.01-.1-.1-1.207-2.07-1.16a14 14 0 0 0-2.453.173a12.5 12.5 0 0 1-2.012-2.655a11.8 11.8 0 0 0 .623-3.1c-.029-1.2-.316-1.888-1.236-1.878s-1.054.815-.933 2.013a9.3 9.3 0 0 0 .665 2.338s-.425 1.323-.987 2.639s-.946 2.006-.946 2.006a9.6 9.6 0 0 0-2.725 1.4c-.824.767-1.159 1.356-.725 1.945c.374.508 1.683.623 2.853-.91a23 23 0 0 0 1.7-2.492s1.784-.489 2.339-.623s1.226-.24 1.226-.24s1.629 1.639 3.2 1.581s1.495-.939 1.485-1.035\"/><path fill=\"#909090\" d=\"M23.954 2.077V7.95h5.633z\"/><path fill=\"#f4f4f4\" d=\"M24.031 2v5.873h5.633z\"/><path fill=\"#fff\" d=\"M8.975 4.457H7.668v4.8H8.7V7.639l.228.013a2 2 0 0 0 .647-.117a1.4 1.4 0 0 0 .493-.291a1.2 1.2 0 0 0 .332-.454a2.1 2.1 0 0 0 .105-.908a2.2 2.2 0 0 0-.114-.644a1.17 1.17 0 0 0-.687-.65a2 2 0 0 0-.411-.105a2 2 0 0 0-.319-.026m-.189 2.294h-.089v-1.48h.194a.57.57 0 0 1 .459.181a.92.92 0 0 1 .183.558c0 .246 0 .469-.222.626a.94.94 0 0 1-.524.114m3.67-2.306c-.111 0-.219.008-.295.011l-.235.006h-.78v4.8h.918a2.7 2.7 0 0 0 1.028-.175a1.7 1.7 0 0 0 .68-.491a1.9 1.9 0 0 0 .373-.749a3.7 3.7 0 0 0 .114-.949a4.4 4.4 0 0 0-.087-1.127a1.8 1.8 0 0 0-.4-.733a1.6 1.6 0 0 0-.535-.4a2.4 2.4 0 0 0-.549-.178a1.3 1.3 0 0 0-.228-.017m-.182 3.937h-.1V5.315h.013a1.06 1.06 0 0 1 .6.107a1.2 1.2 0 0 1 .324.4a1.3 1.3 0 0 1 .142.526c.009.22 0 .4 0 .549a3 3 0 0 1-.033.513a1.8 1.8 0 0 1-.169.5a1.1 1.1 0 0 1-.363.36a.67.67 0 0 1-.416.106m5.077-3.915h-2.43v4.8h1.028V7.357h1.3v-.892h-1.3V5.353h1.4v-.892\"/>",
+  document:"<defs><linearGradient id=\"SVG2m3AVb6p\" x1=\"4.494\" x2=\"13.832\" y1=\"-1712.086\" y2=\"-1695.914\" gradientTransform=\"translate(0 1720)\" gradientUnits=\"userSpaceOnUse\"><stop offset=\"0\" stop-color=\"#2368c4\"/><stop offset=\".5\" stop-color=\"#1a5dbe\"/><stop offset=\"1\" stop-color=\"#1146ac\"/></linearGradient></defs><path fill=\"#41a5ee\" d=\"M28.806 3H9.705a1.19 1.19 0 0 0-1.193 1.191V9.5l11.069 3.25L30 9.5V4.191A1.19 1.19 0 0 0 28.806 3\"/><path fill=\"#2b7cd3\" d=\"M30 9.5H8.512V16l11.069 1.95L30 16Z\"/><path fill=\"#185abd\" d=\"M8.512 16v6.5l10.418 1.3L30 22.5V16Z\"/><path fill=\"#103f91\" d=\"M9.705 29h19.1A1.19 1.19 0 0 0 30 27.809V22.5H8.512v5.309A1.19 1.19 0 0 0 9.705 29\"/><path d=\"M16.434 8.2H8.512v16.25h7.922a1.2 1.2 0 0 0 1.194-1.191V9.391A1.2 1.2 0 0 0 16.434 8.2\" opacity=\".1\"/><path d=\"M15.783 8.85H8.512V25.1h7.271a1.2 1.2 0 0 0 1.194-1.191V10.041a1.2 1.2 0 0 0-1.194-1.191\" opacity=\".2\"/><path d=\"M15.783 8.85H8.512V23.8h7.271a1.2 1.2 0 0 0 1.194-1.191V10.041a1.2 1.2 0 0 0-1.194-1.191\" opacity=\".2\"/><path d=\"M15.132 8.85h-6.62V23.8h6.62a1.2 1.2 0 0 0 1.194-1.191V10.041a1.2 1.2 0 0 0-1.194-1.191\" opacity=\".2\"/><path fill=\"url(#SVG2m3AVb6p)\" d=\"M3.194 8.85h11.938a1.193 1.193 0 0 1 1.194 1.191v11.918a1.193 1.193 0 0 1-1.194 1.191H3.194A1.19 1.19 0 0 1 2 21.959V10.041A1.19 1.19 0 0 1 3.194 8.85\"/><path fill=\"#fff\" d=\"M6.9 17.988q.035.276.046.481h.028q.015-.195.065-.47c.05-.275.062-.338.089-.465l1.255-5.407h1.624l1.3 5.326a8 8 0 0 1 .162 1h.022a8 8 0 0 1 .135-.975l1.039-5.358h1.477l-1.824 7.748h-1.727l-1.237-5.126q-.054-.222-.122-.578t-.084-.52h-.021q-.021.189-.084.561t-.1.552L7.78 19.871H6.024L4.19 12.127h1.5l1.131 5.418a5 5 0 0 1 .079.443\"/>",
+  sheet:"<defs><linearGradient id=\"SVGSuUii0pt\" x1=\"4.494\" x2=\"13.832\" y1=\"-2092.086\" y2=\"-2075.914\" gradientTransform=\"translate(0 2100)\" gradientUnits=\"userSpaceOnUse\"><stop offset=\"0\" stop-color=\"#18884f\"/><stop offset=\".5\" stop-color=\"#117e43\"/><stop offset=\"1\" stop-color=\"#0b6631\"/></linearGradient></defs><path fill=\"#185c37\" d=\"M19.581 15.35L8.512 13.4v14.409A1.19 1.19 0 0 0 9.705 29h19.1A1.19 1.19 0 0 0 30 27.809V22.5Z\"/><path fill=\"#21a366\" d=\"M19.581 3H9.705a1.19 1.19 0 0 0-1.193 1.191V9.5L19.581 16l5.861 1.95L30 16V9.5Z\"/><path fill=\"#107c41\" d=\"M8.512 9.5h11.069V16H8.512Z\"/><path d=\"M16.434 8.2H8.512v16.25h7.922a1.2 1.2 0 0 0 1.194-1.191V9.391A1.2 1.2 0 0 0 16.434 8.2\" opacity=\".1\"/><path d=\"M15.783 8.85H8.512V25.1h7.271a1.2 1.2 0 0 0 1.194-1.191V10.041a1.2 1.2 0 0 0-1.194-1.191\" opacity=\".2\"/><path d=\"M15.783 8.85H8.512V23.8h7.271a1.2 1.2 0 0 0 1.194-1.191V10.041a1.2 1.2 0 0 0-1.194-1.191\" opacity=\".2\"/><path d=\"M15.132 8.85h-6.62V23.8h6.62a1.2 1.2 0 0 0 1.194-1.191V10.041a1.2 1.2 0 0 0-1.194-1.191\" opacity=\".2\"/><path fill=\"url(#SVGSuUii0pt)\" d=\"M3.194 8.85h11.938a1.193 1.193 0 0 1 1.194 1.191v11.918a1.193 1.193 0 0 1-1.194 1.191H3.194A1.19 1.19 0 0 1 2 21.959V10.041A1.19 1.19 0 0 1 3.194 8.85\"/><path fill=\"#fff\" d=\"m5.7 19.873l2.511-3.884l-2.3-3.862h1.847L9.013 14.6c.116.234.2.408.238.524h.017q.123-.281.26-.546l1.342-2.447h1.7l-2.359 3.84l2.419 3.905h-1.809l-1.45-2.711A2.4 2.4 0 0 1 9.2 16.8h-.024a1.7 1.7 0 0 1-.168.351l-1.493 2.722Z\"/><path fill=\"#33c481\" d=\"M28.806 3h-9.225v6.5H30V4.191A1.19 1.19 0 0 0 28.806 3\"/><path fill=\"#107c41\" d=\"M19.581 16H30v6.5H19.581Z\"/>",
+  slide:"<defs><linearGradient id=\"SVGNTQfxeQw\" x1=\"4.494\" x2=\"13.832\" y1=\"-1748.086\" y2=\"-1731.914\" gradientTransform=\"translate(0 1756)\" gradientUnits=\"userSpaceOnUse\"><stop offset=\"0\" stop-color=\"#ca4c28\"/><stop offset=\".5\" stop-color=\"#c5401e\"/><stop offset=\"1\" stop-color=\"#b62f14\"/></linearGradient></defs><path fill=\"#ed6c47\" d=\"M18.93 17.3L16.977 3h-.146A12.9 12.9 0 0 0 3.953 15.854V16Z\"/><path fill=\"#ff8f6b\" d=\"M17.123 3h-.146v13l6.511 2.6L30 16v-.146A12.9 12.9 0 0 0 17.123 3\"/><path fill=\"#d35230\" d=\"M30 16v.143A12.905 12.905 0 0 1 17.12 29h-.287a12.907 12.907 0 0 1-12.88-12.857V16Z\"/><path d=\"M17.628 9.389V23.26a1.2 1.2 0 0 1-.742 1.1a1.2 1.2 0 0 1-.45.091H7.027a10 10 0 0 1-.521-.65a12.74 12.74 0 0 1-2.553-7.657v-.286A12.7 12.7 0 0 1 6.05 8.85a9 9 0 0 1 .456-.65h9.93a1.2 1.2 0 0 1 1.192 1.189\" opacity=\".1\"/><path d=\"M16.977 10.04v13.871a1.2 1.2 0 0 1-.091.448a1.2 1.2 0 0 1-1.1.741H7.62q-.309-.314-.593-.65a10 10 0 0 1-.521-.65a12.74 12.74 0 0 1-2.553-7.657v-.286A12.7 12.7 0 0 1 6.05 8.85h9.735a1.2 1.2 0 0 1 1.192 1.19\" opacity=\".2\"/><path d=\"M16.977 10.04v12.571a1.2 1.2 0 0 1-1.192 1.189H6.506a12.74 12.74 0 0 1-2.553-7.657v-.286A12.7 12.7 0 0 1 6.05 8.85h9.735a1.2 1.2 0 0 1 1.192 1.19\" opacity=\".2\"/><path d=\"M16.326 10.04v12.571a1.2 1.2 0 0 1-1.192 1.189H6.506a12.74 12.74 0 0 1-2.553-7.657v-.286A12.7 12.7 0 0 1 6.05 8.85h9.084a1.2 1.2 0 0 1 1.192 1.19\" opacity=\".2\"/><path fill=\"url(#SVGNTQfxeQw)\" d=\"M3.194 8.85h11.938a1.193 1.193 0 0 1 1.194 1.191v11.918a1.193 1.193 0 0 1-1.194 1.191H3.194A1.19 1.19 0 0 1 2 21.959V10.041A1.19 1.19 0 0 1 3.194 8.85\"/><path fill=\"#fff\" d=\"M9.293 12.028a3.3 3.3 0 0 1 2.174.636a2.27 2.27 0 0 1 .756 1.841a2.56 2.56 0 0 1-.373 1.376a2.5 2.5 0 0 1-1.059.935a3.6 3.6 0 0 1-1.591.334H7.687v2.8H6.141v-7.922ZM7.686 15.94h1.331a1.74 1.74 0 0 0 1.177-.351a1.3 1.3 0 0 0 .4-1.025q0-1.309-1.525-1.31H7.686z\"/>",
+  image:"<path fill=\"#2dcc9f\" d=\"M30 5.851v20.298H2V5.851z\"/><path fill=\"#fff\" d=\"M24.232 8.541a2.2 2.2 0 1 0 1.127.623a2.2 2.2 0 0 0-1.127-.623M18.111 20.1q-2.724-3.788-5.45-7.575L4.579 23.766h10.9q1.316-1.832 2.634-3.663M22.057 16q-2.793 3.882-5.584 7.765h11.169Q24.851 19.882 22.057 16\"/>",
+  video:"<path fill=\"#e75749\" d=\"M4.5 2.375A2.56 2.56 0 0 1 5.861 2h20.366a2.545 2.545 0 0 1 2.423 1.951a3.4 3.4 0 0 1 .072.862v11.176h-1.573a2 2 0 0 0-.22.022a5 5 0 0 0-.581-.011c-.3.007-.61-.014-.914.014a2.3 2.3 0 0 0-.4-.02h-4.739c-.2 0-.392.008-.587-.01l.1-.065l-6.353-3.813v3.889c-2.213-.005-4.427 0-6.64 0a2 2 0 0 0-.251.021c-.212-.032-.427-.016-.642-.016c-.284.006-.57-.015-.853.015a2 2 0 0 0-.253-.022H3.275c.006-3.635 0-7.27 0-10.9a4.8 4.8 0 0 1 .071-1.131A2.54 2.54 0 0 1 4.5 2.375m.54 2.188a.64.64 0 0 0-.489.606v1.316a.64.64 0 0 0 .627.6h1.309a.64.64 0 0 0 .6-.608c.005-.426 0-.853 0-1.279a.64.64 0 0 0-.329-.575a.7.7 0 0 0-.358-.078H5.264a1 1 0 0 0-.224.018m20.341 0a.64.64 0 0 0-.474.607v1.306a.64.64 0 0 0 .6.608c.436.005.872 0 1.308 0a.64.64 0 0 0 .627-.606c.006-.438 0-.876 0-1.314a.64.64 0 0 0-.594-.621c-.348-.009-.7 0-1.045 0a2 2 0 0 0-.422.024ZM5.042 8.38a.64.64 0 0 0-.452.4a1.1 1.1 0 0 0-.041.386v1.135a.637.637 0 0 0 .6.6c.4.008.795 0 1.192 0a.8.8 0 0 0 .395-.065a.64.64 0 0 0 .36-.574V8.983a.64.64 0 0 0-.6-.624c-.338-.008-.677 0-1.016 0a2.4 2.4 0 0 0-.438.021m20.338 0a.64.64 0 0 0-.433.4a1.1 1.1 0 0 0-.041.387v1.131a.64.64 0 0 0 .608.607c.406.006.812 0 1.218 0a.74.74 0 0 0 .38-.078a.64.64 0 0 0 .335-.558V8.985a.637.637 0 0 0-.593-.622c-.349-.009-.7 0-1.047 0a2 2 0 0 0-.428.022ZM5.041 12.2a.64.64 0 0 0-.491.608c0 .438-.005.877 0 1.315a.64.64 0 0 0 .627.6h1.3a.64.64 0 0 0 .608-.607v-1.307a.64.64 0 0 0-.605-.626c-.348-.007-.7 0-1.045 0a2 2 0 0 0-.394.017m20.335.006a.64.64 0 0 0-.43.394a1.1 1.1 0 0 0-.041.386v1.131a.64.64 0 0 0 .607.608c.435.005.87 0 1.306 0a.64.64 0 0 0 .628-.605c.006-.438 0-.876 0-1.313a.637.637 0 0 0-.592-.622c-.349-.01-.7 0-1.046 0a2 2 0 0 0-.431.015Z\"/><path fill=\"#fff\" d=\"M13.458 12.1q3.176 1.908 6.353 3.813l-.1.065q-3.127 1.872-6.251 3.748V15.99q-.003-1.941-.002-3.89\"/><path fill=\"#c0392b\" d=\"M3.275 15.988h1.541a2 2 0 0 1 .253.022a.65.65 0 0 0-.409.273a.9.9 0 0 0-.111.518v1.045a.686.686 0 0 0 .685.689h1.192a.68.68 0 0 0 .657-.569c.008-.447 0-.9 0-1.343a.63.63 0 0 0-.521-.613a2 2 0 0 1 .251-.021h6.64v3.736q3.127-1.871 6.251-3.748c.2.018.391.007.587.01h4.741a2.3 2.3 0 0 1 .4.02a.64.64 0 0 0-.475.385a1 1 0 0 0-.045.407v1.014a.677.677 0 0 0 .691.719h1.16a.684.684 0 0 0 .686-.658v-.984a1.07 1.07 0 0 0-.1-.589a.64.64 0 0 0-.42-.292a2 2 0 0 1 .22-.022h1.573c.011 1.721 0 3.443 0 5.165v6.293a2.57 2.57 0 0 1-.612 1.651a2.54 2.54 0 0 1-1.563.868a8 8 0 0 1-.981.033H6.724a9 9 0 0 1-1.368-.048a2.56 2.56 0 0 1-2-1.846a2.8 2.8 0 0 1-.09-.746V16.891c.007-.3-.002-.602.009-.903m1.795 3.843a.6.6 0 0 0-.386.234a.76.76 0 0 0-.134.464v1.162a.685.685 0 0 0 .686.658h1.283a.687.687 0 0 0 .568-.716v-1.191a.62.62 0 0 0-.2-.458a.7.7 0 0 0-.487-.17H5.264a1 1 0 0 0-.194.017m20.366 0a.62.62 0 0 0-.522.58v1.222a.676.676 0 0 0 .69.718c.428 0 .857.005 1.285 0a.7.7 0 0 0 .562-.684v-1.013a.9.9 0 0 0-.123-.568a.66.66 0 0 0-.532-.267h-.954a2.3 2.3 0 0 0-.406.011ZM5.071 23.648a.6.6 0 0 0-.4.249a.77.77 0 0 0-.124.448v1.132a.7.7 0 0 0 .6.688h1.376a.687.687 0 0 0 .567-.717v-1.189a.62.62 0 0 0-.2-.459a.7.7 0 0 0-.484-.17H5.265a1 1 0 0 0-.194.018m20.362 0a.62.62 0 0 0-.492.427a1 1 0 0 0-.029.33V25.6a.68.68 0 0 0 .656.567h1.193a.69.69 0 0 0 .686-.719v-1.164a.66.66 0 0 0-.286-.545a1.46 1.46 0 0 0-.787-.11c-.312.01-.629-.02-.94.018Z\"/>",
+  audio:"<path fill=\"#00007f\" d=\"M17.229 4a.9.9 0 0 0-.569.232l-7.6 6.32a1.16 1.16 0 0 1-.955.328H3.208A1.2 1.2 0 0 0 2 12.088v7.826a1.2 1.2 0 0 0 1.208 1.206H8.1a1.16 1.16 0 0 1 .955.328l7.6 6.32c.521.433 1.081.224 1.081-.289V4.522A.494.494 0 0 0 17.229 4M27 6.3l-1.791 1.793a14.71 14.71 0 0 1 0 15.844l1.785 1.776A17.19 17.19 0 0 0 27 6.3m-4.333 4.323L20.905 12.4a6.035 6.035 0 0 1 0 7.237l1.756 1.756a8.554 8.554 0 0 0 .01-10.769Z\"/>",
+  code:"<path fill=\"#f5de19\" d=\"M18.774 19.7a3.73 3.73 0 0 0 3.376 2.078c1.418 0 2.324-.709 2.324-1.688c0-1.173-.931-1.589-2.491-2.272l-.856-.367c-2.469-1.052-4.11-2.37-4.11-5.156c0-2.567 1.956-4.52 5.012-4.52A5.06 5.06 0 0 1 26.9 10.52l-2.665 1.711a2.33 2.33 0 0 0-2.2-1.467a1.49 1.49 0 0 0-1.638 1.467c0 1.027.636 1.442 2.1 2.078l.856.366c2.908 1.247 4.549 2.518 4.549 5.376c0 3.081-2.42 4.769-5.671 4.769a6.58 6.58 0 0 1-6.236-3.5ZM6.686 20c.538.954 1.027 1.76 2.2 1.76c1.124 0 1.834-.44 1.834-2.15V7.975h3.422v11.683c0 3.543-2.078 5.156-5.11 5.156A5.31 5.31 0 0 1 3.9 21.688Z\"/>",
+  text:"<path fill=\"#c2c2c2\" d=\"M22.038 2H6.375a1.755 1.755 0 0 0-1.75 1.75v24.5A1.755 1.755 0 0 0 6.375 30h19.25a1.755 1.755 0 0 0 1.75-1.75V6.856Zm.525 2.844l1.663 1.531h-1.663ZM6.375 28.25V3.75h14.438v4.375h4.813V28.25Z\"/><path fill=\"#829ec2\" d=\"M8.125 15.097h13.076v1.75H8.125zm0 9.342h9.762v1.75H8.125zm0-4.676h15.75v1.75H8.125zm0-9.533h15.75v1.75H8.125z\"/>",
+  js:"<path fill=\"#f5de19\" d=\"M18.774 19.7a3.73 3.73 0 0 0 3.376 2.078c1.418 0 2.324-.709 2.324-1.688c0-1.173-.931-1.589-2.491-2.272l-.856-.367c-2.469-1.052-4.11-2.37-4.11-5.156c0-2.567 1.956-4.52 5.012-4.52A5.06 5.06 0 0 1 26.9 10.52l-2.665 1.711a2.33 2.33 0 0 0-2.2-1.467a1.49 1.49 0 0 0-1.638 1.467c0 1.027.636 1.442 2.1 2.078l.856.366c2.908 1.247 4.549 2.518 4.549 5.376c0 3.081-2.42 4.769-5.671 4.769a6.58 6.58 0 0 1-6.236-3.5ZM6.686 20c.538.954 1.027 1.76 2.2 1.76c1.124 0 1.834-.44 1.834-2.15V7.975h3.422v11.683c0 3.543-2.078 5.156-5.11 5.156A5.31 5.31 0 0 1 3.9 21.688Z\"/>",
+  py:"<defs><linearGradient id=\"SVGg4rxgcri\" x1=\"-133.268\" x2=\"-133.198\" y1=\"-202.91\" y2=\"-202.84\" gradientTransform=\"matrix(189.38 0 0 189.81 25243.061 38519.17)\" gradientUnits=\"userSpaceOnUse\"><stop offset=\"0\" stop-color=\"#387eb8\"/><stop offset=\"1\" stop-color=\"#366994\"/></linearGradient><linearGradient id=\"SVG5ouQmWbV\" x1=\"-133.575\" x2=\"-133.495\" y1=\"-203.203\" y2=\"-203.133\" gradientTransform=\"matrix(189.38 0 0 189.81 25309.061 38583.42)\" gradientUnits=\"userSpaceOnUse\"><stop offset=\"0\" stop-color=\"#ffe052\"/><stop offset=\"1\" stop-color=\"#ffc331\"/></linearGradient></defs><path fill=\"url(#SVGg4rxgcri)\" d=\"M15.885 2.1c-7.1 0-6.651 3.07-6.651 3.07v3.19h6.752v1H6.545S2 8.8 2 16.005s4.013 6.912 4.013 6.912H8.33v-3.361s-.13-4.013 3.9-4.013h6.762s3.772.06 3.772-3.652V5.8s.572-3.712-6.842-3.712Zm-3.732 2.137a1.214 1.214 0 1 1-1.183 1.244v-.02a1.214 1.214 0 0 1 1.214-1.214Z\"/><path fill=\"url(#SVG5ouQmWbV)\" d=\"M16.085 29.91c7.1 0 6.651-3.08 6.651-3.08v-3.18h-6.751v-1h9.47S30 23.158 30 15.995s-4.013-6.912-4.013-6.912H23.64V12.4s.13 4.013-3.9 4.013h-6.765S9.2 16.356 9.2 20.068V26.2s-.572 3.712 6.842 3.712h.04Zm3.732-2.147A1.214 1.214 0 1 1 21 26.519v.03a1.214 1.214 0 0 1-1.214 1.214z\"/>",
+  css:"<path fill=\"#639\" d=\"M1.995 1.994h23.52a4.48 4.48 0 0 1 4.48 4.48v19.04a4.48 4.48 0 0 1-4.48 4.48H6.475a4.48 4.48 0 0 1-4.48-4.48Z\"/><path fill=\"#fff\" d=\"M9.079 24.87v-4.704c0-1.876 1.204-2.884 3.024-2.884c1.792-.028 2.912 1.148 2.856 3.136h-2.072c.056-.756-.28-1.316-.84-1.288c-.7 0-.896.476-.896 1.372v4.088c0 .868.28 1.288.896 1.316c.644 0 .896-.644.84-1.372h2.072c.112 2.044-1.176 3.248-2.996 3.22c-1.764 0-2.884-.98-2.884-2.884m6.636-.336h1.932c.028.896.308 1.456.924 1.456s.84-.364.84-1.204c0-.7-.308-1.092-1.064-1.456l-.728-.336c-1.288-.616-1.82-1.372-1.82-2.884c0-1.68 1.064-2.856 2.8-2.856s2.66 1.204 2.688 3.164h-1.876c0-.812-.168-1.372-.784-1.372c-.56 0-.84.28-.84.98s.252.98.924 1.26l.672.308c1.428.672 2.044 1.54 2.044 3.164c0 1.932-1.092 2.996-2.884 2.996s-2.8-1.232-2.828-3.22m6.328 0h1.96c0 .896.308 1.456.896 1.456s.84-.364.84-1.204c0-.7-.28-1.092-1.064-1.456l-.728-.336c-1.288-.616-1.792-1.372-1.792-2.884c0-1.68 1.036-2.856 2.8-2.856s2.632 1.204 2.688 3.164h-1.876c-.028-.812-.196-1.372-.812-1.372c-.56 0-.812.28-.812.98s.224.98.896 1.26l.7.308c1.4.672 2.016 1.54 2.016 3.164c0 1.932-1.092 2.996-2.884 2.996s-2.8-1.232-2.828-3.22\"/>",
+  html:"<path fill=\"#e44f26\" d=\"M5.902 27.201L3.655 2h24.69l-2.25 25.197L15.985 30z\"/><path fill=\"#f1662a\" d=\"m16 27.858l8.17-2.265l1.922-21.532H16z\"/><path fill=\"#ebebeb\" d=\"M16 13.407h-4.09l-.282-3.165H16V7.151H8.25l.074.83l.759 8.517H16zm0 8.027l-.014.004l-3.442-.929l-.22-2.465H9.221l.433 4.852l6.332 1.758l.014-.004z\"/><path fill=\"#fff\" d=\"M15.989 13.407v3.091h3.806l-.358 4.009l-3.448.93v3.216l6.337-1.757l.046-.522l.726-8.137l.076-.83zm0-6.256v3.091h7.466l.062-.694l.141-1.567l.074-.83z\"/>",
+  ts:"<path fill=\"#007acc\" d=\"M23.827 8.243a4.4 4.4 0 0 1 2.223 1.281a6 6 0 0 1 .852 1.143c.011.045-1.534 1.083-2.471 1.662c-.034.023-.169-.124-.322-.35a2.01 2.01 0 0 0-1.67-1c-1.077-.074-1.771.49-1.766 1.433a1.3 1.3 0 0 0 .153.666c.237.49.677.784 2.059 1.383c2.544 1.095 3.636 1.817 4.31 2.843a5.16 5.16 0 0 1 .416 4.333a4.76 4.76 0 0 1-3.932 2.815a11 11 0 0 1-2.708-.028a6.53 6.53 0 0 1-3.616-1.884a6.3 6.3 0 0 1-.926-1.371a3 3 0 0 1 .327-.208c.158-.09.756-.434 1.32-.761l1.024-.6l.214.312a4.8 4.8 0 0 0 1.35 1.292a3.3 3.3 0 0 0 3.458-.175a1.545 1.545 0 0 0 .2-1.974c-.276-.395-.84-.727-2.443-1.422a8.8 8.8 0 0 1-3.349-2.055a4.7 4.7 0 0 1-.976-1.777a7.1 7.1 0 0 1-.062-2.268a4.33 4.33 0 0 1 3.644-3.374a9 9 0 0 1 2.691.084m-8.343 1.483l.011 1.454h-4.63v13.148H7.6V11.183H2.97V9.755a14 14 0 0 1 .04-1.466c.017-.023 2.832-.034 6.245-.028l6.211.017Z\"/>",
+  json:"<path fill=\"#f5de19\" d=\"M4.014 14.976a2.5 2.5 0 0 0 1.567-.518a2.38 2.38 0 0 0 .805-1.358a15.3 15.3 0 0 0 .214-2.944q.012-2.085.075-2.747a5.2 5.2 0 0 1 .418-1.686a3 3 0 0 1 .755-1.018A3.05 3.05 0 0 1 9 4.125A6.8 6.8 0 0 1 10.544 4h.7v1.96h-.387a2.34 2.34 0 0 0-1.723.468a3.4 3.4 0 0 0-.425 2.092a36 36 0 0 1-.137 4.133a4.7 4.7 0 0 1-.768 2.06A4.6 4.6 0 0 1 6.1 16a3.8 3.8 0 0 1 1.992 1.754a8.9 8.9 0 0 1 .618 3.865q0 2.435.05 2.9a1.76 1.76 0 0 0 .504 1.181a2.64 2.64 0 0 0 1.592.337h.387V28h-.7a5.7 5.7 0 0 1-1.773-.2a2.97 2.97 0 0 1-1.324-.93a3.35 3.35 0 0 1-.681-1.63a24 24 0 0 1-.165-3.234a16.5 16.5 0 0 0-.214-3.106a2.4 2.4 0 0 0-.805-1.361a2.5 2.5 0 0 0-1.567-.524Zm23.972 2.035a2.5 2.5 0 0 0-1.567.524a2.4 2.4 0 0 0-.805 1.361a16.5 16.5 0 0 0-.212 3.109a24 24 0 0 1-.169 3.234a3.35 3.35 0 0 1-.681 1.63a2.97 2.97 0 0 1-1.324.93a5.7 5.7 0 0 1-1.773.2h-.7V26.04h.387a2.64 2.64 0 0 0 1.592-.337a1.76 1.76 0 0 0 .506-1.186q.05-.462.05-2.9a8.9 8.9 0 0 1 .618-3.865A3.8 3.8 0 0 1 25.9 16a4.6 4.6 0 0 1-1.7-1.286a4.7 4.7 0 0 1-.768-2.06a36 36 0 0 1-.137-4.133a3.4 3.4 0 0 0-.425-2.092a2.34 2.34 0 0 0-1.723-.468h-.387V4h.7a6.8 6.8 0 0 1 1.54.125a3.05 3.05 0 0 1 1.149.581a3 3 0 0 1 .755 1.018a5.2 5.2 0 0 1 .418 1.686q.062.662.075 2.747a15.3 15.3 0 0 0 .212 2.947a2.38 2.38 0 0 0 .805 1.355a2.5 2.5 0 0 0 1.567.518Z\"/>",
+  md:"<path fill=\"none\" stroke=\"#755838\" d=\"M2.5 7.955h27v16.091h-27z\"/><path fill=\"#755838\" d=\"M5.909 20.636v-9.272h2.727l2.728 3.409l2.727-3.409h2.727v9.272h-2.727v-5.318l-2.727 3.409l-2.728-3.409v5.318zm17.046 0l-4.091-4.5h2.727v-4.772h2.727v4.772h2.727z\"/>",
+  folder:"<path fill=\"#c09553\" d=\"M27.5 5.5h-9.3l-2.1 4.2H4.4v16.8h25.2v-21Zm0 4.2h-8.2l1.1-2.1h7.1Z\"/>",
+  copy:"<path fill=\"#8a7a66\" d=\"M8.5 8.5v-3a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-3v-5.5a3.5 3.5 0 0 0-3.5-3.5z\"/><rect fill=\"#8a7a66\" x=\"3.5\" y=\"8.5\" width=\"12\" height=\"12\" rx=\"2\"/>"
+};
+
+/* ============ 工具函数 ============ */
+function extOf(name){const m = name.match(/\.([^.]+)$/); return m ? m[1].toLowerCase() : "";}
+function catOf(name){
+  const e = extOf(name);
+  for(const k in EXT_MAP) if(EXT_MAP[k].includes(e)) return k;
+  return "text";
+}
+function fmtSize(b){
+  if(b >= 1e9) return (b/1e9).toFixed(1) + " GB";
+  if(b >= 1e6) return (b/1e6).toFixed(1) + " MB";
+  if(b >= 1e3) return Math.round(b/1e3) + " KB";
+  return b + " B";
+}
+function relPath(f){ return f.d ? f.d + "/" + f.n : f.n; }
+/* 打开文件统一用相对路径：本地 file:// 与云端静态托管均可用 */
+function openRel(f){
+  const rel = relPath(f).split("/").map(encodeURIComponent).join("/");
+  try{ window.open(rel, "_blank"); }catch(err){}
+}
+
+/* ============ 图标渲染辅助 ============ */
+const S = inner => `<svg viewBox="0 0 32 32" aria-hidden="true">${inner}</svg>`;
+const Scopy = `<svg viewBox="0 0 24 24" aria-hidden="true">${ICONS.copy}</svg>`;
+/* 优先按扩展名选图标（如 .py 显示 Python 图标），否则用所属类型图标 */
+function iconFor(f){
+  const e = extOf(f.n);
+  return ICONS[e] || ICONS[catOf(f.n)] || ICONS.text;
+}
+
+/* ============ 状态 ============ */
+let state = { q:"", folder:"全部", type:"全部", sort:"name", asc:true };
+
+/* ============ 渲染 ============ */
+const grid = document.getElementById("grid");
+const empty = document.getElementById("empty");
+const toast = document.getElementById("toast");
+
+function buildFolderChips(){
+  const box = document.getElementById("folderChips");
+  box.innerHTML = '<div class="chips-label">浏览目录</div>';
+  const dirs = ["全部", ...new Set(DATA.map(f => f.d === "" ? "根目录" : f.d))];
+  dirs.forEach(d => {
+    const b = document.createElement("button");
+    b.className = "chip folder";
+    b.textContent = d;
+    b.onclick = () => { state.folder = d; refresh(); };
+    box.appendChild(b);
+  });
+}
+function buildTypeChips(){
+  const box = document.getElementById("typeChips");
+  const cats = ["全部", ...Object.keys(CAT_LABEL)];
+  cats.forEach(c => {
+    const b = document.createElement("button");
+    b.className = "chip";
+    b.innerHTML = (c === "全部" ? '<span class="dot"></span>全部' : '<span class="dot"></span>' + CAT_LABEL[c]);
+    b.onclick = () => { state.type = c; refresh(); };
+    box.appendChild(b);
+  });
+}
+/* 根据当前筛选状态刷新所有筛选按钮的高亮 */
+function updateChips(){
+  document.querySelectorAll("#folderChips .chip").forEach(b => {
+    b.classList.toggle("active", b.textContent === state.folder);
+  });
+  document.querySelectorAll("#typeChips .chip").forEach(b => {
+    const txt = b.textContent.trim();
+    const isAll = txt === "全部";
+    const active = isAll ? state.type === "全部" : txt === CAT_LABEL[state.type];
+    b.classList.toggle("active", active);
+    b.style.background = active ? (isAll ? "var(--ink)" : CAT_COLOR[state.type]) : "";
+  });
+}
+
+function currentList(){
+  let list = DATA.filter(f => {
+    const inFolder = state.folder === "全部" || (f.d === "" ? "根目录" : f.d) === state.folder;
+    const inType = state.type === "全部" || catOf(f.n) === state.type;
+    const q = state.q.trim().toLowerCase();
+    const hitQ = !q || f.n.toLowerCase().includes(q) || relPath(f).toLowerCase().includes(q) || extOf(f.n).includes(q);
+    return inFolder && inType && hitQ;
+  });
+  const key = state.sort, dir = state.asc ? 1 : -1;
+  list.sort((a,b) => {
+    if(key === "name") return a.n.localeCompare(b.n, "zh") * dir;
+    if(key === "size") return (a.s - b.s) * dir;
+    return a.t.localeCompare(b.t) * dir;
+  });
+  return list;
+}
+
+function cardHTML(f, i){
+  const cat = catOf(f.n);
+  const c = CAT_COLOR[cat];
+  const label = CAT_LABEL[cat];
+  const folderTxt = f.d === "" ? "根目录" : f.d;
+  return `
+  <article class="card" style="--c:${c};animation-delay:${Math.min(i*45, 600)}ms" data-cat="${cat}" data-idx="${i}"
+      tabindex="0" role="button" aria-label="${f.n}"
+      title="点击打开：${relPath(f)}">
+    <div class="card-top">
+      <div class="icon-tile">${S(iconFor(f))}</div>
+      <span class="badge">${label.toUpperCase()}</span>
+    </div>
+    <h3 class="file-name">${f.n}</h3>
+    <div class="card-meta">
+      <span class="size">${fmtSize(f.s)}</span>
+      <span class="sep">·</span>
+      <span>${f.t}</span>
+    </div>
+    <div class="card-foot">
+      <span class="folder-chip">${S(ICONS.folder)}<span>${folderTxt}</span></span>
+      <button class="copy-btn" title="复制路径" aria-label="复制路径">${Scopy}</button>
+    </div>
+  </article>`;
+}
+
+/* 按文件夹分组（根目录排最前，其余按名称排序） */
+function groupList(list){
+  const map = new Map();
+  list.forEach(f => {
+    const k = f.d === "" ? "根目录" : f.d;
+    if(!map.has(k)) map.set(k, []);
+    map.get(k).push(f);
+  });
+  return [...map.keys()]
+    .sort((a,b) => a === "根目录" ? -1 : b === "根目录" ? 1 : a.localeCompare(b, "zh"))
+    .map(k => ({ folder:k, files:map.get(k) }));
+}
+/* 取该文件夹出现最多的类型颜色作为分组图标色 */
+function folderColor(files){
+  const counts = {};
+  files.forEach(f => { const c = catOf(f.n); counts[c] = (counts[c]||0)+1; });
+  const top = Object.keys(counts).sort((a,b) => counts[b]-counts[a])[0];
+  return CAT_COLOR[top] || "var(--ink)";
+}
+
+function refresh(){
+  const list = currentList();
+  const groups = groupList(list);
+  let gi = 0;
+  updateChips();
+  grid.innerHTML = groups.map(g => {
+    const cards = g.files.map((f,i) => cardHTML(f, gi++)).join("");
+    return `
+    <section class="group" style="animation-delay:${Math.min(groups.indexOf(g)*80, 480)}ms">
+      <div class="group-head">
+        <span class="group-icon" style="--g:${folderColor(g.files)}">${S(ICONS.folder)}</span>
+        <h2 class="group-title">${g.folder}</h2>
+        <span class="group-count">${g.files.length} 个文件 · ${fmtSize(g.files.reduce((s,f)=>s+f.s,0))}</span>
+      </div>
+      <div class="group-grid">${cards}</div>
+    </section>`;
+  }).join("");
+  empty.classList.toggle("show", list.length === 0);
+  empty.querySelector("p").innerHTML = (DATA.length === 0)
+    ? '当前目录没有文件'
+    : '没有找到匹配的文件，换个关键词试试吧';
+
+  const folders = new Set(DATA.map(f => f.d === "" ? "根目录" : f.d));
+  const totalSize = DATA.reduce((s,f) => s + f.s, 0);
+  const shownSize = list.reduce((s,f) => s + f.s, 0);
+  const types = new Set(DATA.map(f => catOf(f.n))).size;
+
+  document.getElementById("resultLine").textContent =
+    (liveMode === "server" ? "实时·服务端" : "内置快照") +
+    ` · 找到 ${list.length} / ${DATA.length} 个文件 · 当前显示 ${fmtSize(shownSize)} · ${groups.length} 个目录`;
+
+  document.getElementById("footCount").textContent = DATA.length;
+  document.getElementById("stat-size").textContent = fmtSize(totalSize);
+  const sc = document.getElementById("stat-count"), sf = document.getElementById("stat-folder"), st = document.getElementById("stat-type");
+  sc.textContent = DATA.length; sc.dataset.count = DATA.length;
+  sf.textContent = folders.size - 1; sf.dataset.count = folders.size - 1;
+  st.textContent = types; st.dataset.count = types;
+
+  /* 绑定交互 */
+  grid.querySelectorAll(".card").forEach(card => {
+    const f = list[+card.dataset.idx];
+    const openFile = () => {
+      openRel(f);
+    };
+    card.addEventListener("click", e => {
+      if(e.target.closest(".copy-btn")) return;
+      openFile();
+    });
+    card.addEventListener("keydown", e => {
+      if(e.key === "Enter" || e.key === " "){ e.preventDefault(); openFile(); }
+    });
+    const btn = card.querySelector(".copy-btn");
+    btn.addEventListener("click", e => {
+      e.stopPropagation();
+      copyPath(f);
+    });
+  });
+}
+
+function copyPath(f){
+  const winPath = relPath(f).replace(/\//g, "\\");
+  (navigator.clipboard ? navigator.clipboard.writeText(winPath) : Promise.reject())
+    .then(() => showToast("已复制路径：" + winPath))
+    .catch(() => showToast("复制失败，请手动选择"));
+}
+
+/* ============ 实时模式：请求 /api/files 获取真实文件列表 ============ */
+async function fetchServerData(silent){
+  try{
+    const r = await fetch("/api/files", { cache: "no-store" });
+    if(!r.ok) throw new Error("HTTP " + r.status);
+    const data = await r.json();
+    if(!Array.isArray(data)) throw new Error("数据格式错误");
+    DATA = data;
+    liveMode = "server";
+    buildFolderChips();
+    refresh();
+    return true;
+  }catch(e){
+    if(!silent) showToast("无法连接本地服务（未启动或已停止），已显示内置快照");
+    return false;
+  }
+}
+
+let toastTimer;
+function showToast(msg){
+  toast.textContent = msg;
+  toast.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.remove("show"), 2200);
+}
+
+/* ============ 统计数字滚动 ============ */
+function countUp(el){
+  const target = +el.dataset.count;
+  const dur = 900, t0 = performance.now();
+  function tick(t){
+    const p = Math.min((t - t0) / dur, 1);
+    const eased = 1 - Math.pow(1 - p, 3);
+    el.textContent = Math.round(target * eased);
+    if(p < 1) requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+}
+
+/* ============ 事件 ============ */
+document.getElementById("search").addEventListener("input", e => {
+  state.q = e.target.value;
+  refresh();
+});
+document.getElementById("sort").addEventListener("change", e => {
+  state.sort = e.target.value;
+  refresh();
+});
+document.getElementById("dirBtn").addEventListener("click", () => {
+  state.asc = !state.asc;
+  document.getElementById("dirBtn").classList.toggle("flipped", !state.asc);
+  refresh();
+});
+
+/* ============ 启动 ============ */
+buildFolderChips();
+buildTypeChips();
+refresh();
+document.querySelectorAll(".stat-num[data-count]").forEach(countUp);
+/* 若由 server.js（Node 服务）提供页面，自动请求 /api/files 实时更新；否则显示生成器写入的内置数据 */
+fetchServerData(true);
+</script>
+</body>
+</html>
