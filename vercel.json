@@ -1,4 +1,9 @@
 {
   "buildCommand": "node generate-index.js",
-  "outputDirectory": "."
+  "outputDirectory": ".",
+  "functions": {
+    "api/files.js": {
+      "includeFiles": "**/*"
+    }
+  }
 }
