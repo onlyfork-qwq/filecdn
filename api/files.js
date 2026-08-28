@@ -5,6 +5,8 @@
 const fs = require('fs');
 const path = require('path');
 
+const EXTERNAL_DIR = 'external'; // 外链文件定义目录：每个文件一个 .json（name+link 必填）
+
 function toDate(d){
   const p = n => String(n).padStart(2, '0');
   return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
@@ -35,6 +37,29 @@ function fmtSize(b){
   if(b >= 1e3) return Math.round(b/1e3) + " KB";
   return b + " B";
 }
+/* 扫描 external/ 目录，读取外链文件定义（每个 .json 代表一个文件）
+   校验规则：JSON 必须能解析，且 name、link 均为非空字符串；格式异常一律跳过。 */
+function loadExternal(){
+  const dir = path.join(process.cwd(), EXTERNAL_DIR);
+  const items = [];
+  let list = [];
+  try{ list = fs.readdirSync(dir); }catch(e){ return items; }
+  for(const name of list){
+    if(!name.toLowerCase().endsWith('.json')) continue;
+    let obj;
+    try{
+      obj = JSON.parse(fs.readFileSync(path.join(dir, name), 'utf8'));
+    }catch(e){ continue; } // 格式异常：不识别
+    if(!obj || typeof obj !== 'object' || Array.isArray(obj)) continue;
+    const n = typeof obj.name === 'string' ? obj.name.trim() : '';
+    const l = typeof obj.link === 'string' ? obj.link.trim() : '';
+    if(!n || !l) continue; // 缺 name/link：不识别
+    const s = (typeof obj.size === 'number' && isFinite(obj.size) && obj.size >= 0) ? Math.round(obj.size) : 0;
+    const t = typeof obj.date === 'string' ? obj.date.trim() : '';
+    items.push({ n, d: '外链', s, t, l });
+  }
+  return items;
+}
 /* 渲染成 HTML：每个文件变成可点击链接（浏览器直接访问用） */
 function renderHtml(files){
   const groups = new Map();
@@ -45,8 +70,11 @@ function renderHtml(files){
   });
   const rows = [...groups.entries()].map(([folder, list]) => {
     const lis = list.map(f => {
-      const href = '/' + ((f.d ? f.d + '/' : '') + f.n).split('/').map(encodeURIComponent).join('/');
-      return '<li><a href="' + href + '" target="_blank" rel="noopener">' + esc(f.n) + '</a><span class="meta">' + fmtSize(f.s) + ' · ' + f.t + '</span></li>';
+      const href = f.l ? f.l : ('/' + ((f.d ? f.d + '/' : '') + f.n).split('/').map(encodeURIComponent).join('/'));
+      const ext = f.l ? ' <span class="ext">外链</span>' : '';
+      const size = f.s > 0 ? fmtSize(f.s) : '未知';
+      const meta = size + (f.t ? ' · ' + f.t : '');
+      return '<li><a href="' + href + '" target="_blank" rel="noopener">' + esc(f.n) + ext + '</a><span class="meta">' + meta + '</span></li>';
     }).join('');
     return '<div class="group"><h2>' + esc(folder) + '</h2><ul>' + lis + '</ul></div>';
   }).join('');
@@ -59,6 +87,7 @@ function renderHtml(files){
     + 'ul{list-style:none;margin:0;padding:0}.group li{display:flex;justify-content:space-between;align-items:center;padding:8px 4px;border-bottom:1px solid #f1f2f4}'
     + '.group li:last-child{border-bottom:none}'
     + 'a{color:#2563eb;text-decoration:none;word-break:break-all}a:hover{text-decoration:underline}'
+    + '.ext{display:inline-block;margin-left:6px;font-size:11px;color:#fff;background:#e8734a;border-radius:6px;padding:1px 6px;vertical-align:1px}'
     + '.meta{color:#9ca3af;font-size:13px;white-space:nowrap;margin-left:16px}</style></head><body>'
     + '<h1>文件列表</h1><p class="sub">共 ' + files.length + ' 个文件 · 点击文件名下载</p>' + rows + '</body></html>';
 }
@@ -68,7 +97,7 @@ module.exports = (req, res) => {
   const withImg = u.searchParams.get('all') === '1';
   const asHtml = u.searchParams.get('html') === '1';
   const out = [];
-  const skipDirs = new Set(['.git', 'node_modules', 'api', '.vercel', '___vc']);
+  const skipDirs = new Set(['.git', 'node_modules', 'api', '.vercel', '___vc', EXTERNAL_DIR]);
   if(!withImg) skipDirs.add('img'); // 默认排除 img（图床），?all=1 时保留
   const skipFiles = new Set([
     'index.html', 'generate-index.js', 'server.js', 'api/files.js',
@@ -83,6 +112,9 @@ module.exports = (req, res) => {
     if(fs.existsSync(mp)) meta = JSON.parse(fs.readFileSync(mp, 'utf8'));
   }catch(e){ meta = null; }
   walk(process.cwd(), '', out, skipDirs, skipFiles, meta);
+  /* 合并 external/ 外链文件定义 */
+  const ext = loadExternal();
+  if(ext.length) out.push(...ext);
   res.setHeader('Cache-Control', 'no-store');
   res.setHeader('Access-Control-Allow-Origin', '*'); // 允许博客跨域读取
   if(asHtml){
