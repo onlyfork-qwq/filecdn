@@ -337,14 +337,7 @@
    ============================================================ */
 
 const FILES = [
-  {n:"产品说明.txt", d:"", s:481, t:"2026-08-27"},
-  {n:"项目配置.json", d:"", s:191, t:"2026-08-27"},
-  {n:"项目README.md", d:"", s:420, t:"2026-08-27"},
-  {n:"新建 Microsoft Excel 工作表.xlsx", d:"", s:6601, t:"2026-08-27"},
-  {n:"样式.css", d:"代码", s:382, t:"2026-08-27"},
-  {n:"主程序.js", d:"代码", s:313, t:"2026-08-27"},
-  {n:"品牌图标.svg", d:"图片", s:442, t:"2026-08-27"},
-  {n:"会议记录.md", d:"文档", s:381, t:"2026-08-27"},
+
 ];
 
 /* 数据源：默认使用内置数据（生成器写入）；若由 server.js 提供页面则自动请求 /api/files 实时更新 */
@@ -490,7 +483,7 @@ function cardHTML(f, i){
   const label = CAT_LABEL[cat];
   const folderTxt = f.d === "" ? "根目录" : f.d;
   return `
-  <article class="card" style="--c:${c};animation-delay:${Math.min(i*45, 600)}ms" data-cat="${cat}" data-idx="${i}"
+  <article class="card" style="--c:${c};animation-delay:${Math.min(i*45, 600)}ms" data-cat="${cat}" data-path="${encodeURIComponent(relPath(f))}"
       tabindex="0" role="button" aria-label="${f.n}"
       title="点击打开：${relPath(f)}">
     <div class="card-top">
@@ -558,19 +551,20 @@ function refresh(){
   const types = new Set(DATA.map(f => catOf(f.n))).size;
 
   document.getElementById("resultLine").textContent =
-    (liveMode === "server" ? "实时·服务端" : "内置快照") +
-    ` · 找到 ${list.length} / ${DATA.length} 个文件 · 当前显示 ${fmtSize(shownSize)} · ${groups.length} 个目录`;
+    `找到 ${list.length} / ${DATA.length} 个文件 · 当前显示 ${fmtSize(shownSize)} · ${groups.length} 个目录`;
 
   document.getElementById("footCount").textContent = DATA.length;
   document.getElementById("stat-size").textContent = fmtSize(totalSize);
   const sc = document.getElementById("stat-count"), sf = document.getElementById("stat-folder"), st = document.getElementById("stat-type");
   sc.textContent = DATA.length; sc.dataset.count = DATA.length;
-  sf.textContent = folders.size - 1; sf.dataset.count = folders.size - 1;
+  sf.textContent = Math.max(0, folders.size - 1); sf.dataset.count = Math.max(0, folders.size - 1);
   st.textContent = types; st.dataset.count = types;
 
-  /* 绑定交互 */
+  /* 绑定交互：用路径作为稳定标识回查文件（序号会因分组错位） */
+  const byPath = new Map(list.map(f => [encodeURIComponent(relPath(f)), f]));
   grid.querySelectorAll(".card").forEach(card => {
-    const f = list[+card.dataset.idx];
+    const f = byPath.get(card.dataset.path);
+    if(!f) return;
     const openFile = () => {
       openRel(f);
     };
