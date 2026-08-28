@@ -19,7 +19,7 @@ const out = [];
    GUI 列表需要显示 img/（图床图片），故生成器不排除 img；
    排除 img 仅发生在 API（api/files.js、server.js 的 /api/files）返回给博客 /gui 时。 */
 const skip = new Set(['index.html', 'server.js', 'generate-index.js', '启动索引服务.cmd', '生成索引.cmd', 'vercel.json']);
-const skipDirs = new Set(['.git', 'node_modules', 'api']);
+const skipDirs = new Set(['.git', 'node_modules', 'api', '___vc']);
 function walk(dir, relBase){
   for(const ent of fs.readdirSync(dir, { withFileTypes: true })){
     if(ent.name.startsWith('_') || ent.name.startsWith('.')) continue;
