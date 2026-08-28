@@ -54,7 +54,8 @@ function loadExternal(){
     const n = typeof obj.name === 'string' ? obj.name.trim() : '';
     const l = typeof obj.link === 'string' ? obj.link.trim() : '';
     if(!n || !l) continue; // 缺 name/link：不识别
-    const s = (typeof obj.size === 'number' && isFinite(obj.size) && obj.size >= 0) ? Math.round(obj.size) : 0;
+    // JSON 里 size 单位为 MB（可写小数），内部换算成字节统一存储
+    const s = (typeof obj.size === 'number' && isFinite(obj.size) && obj.size >= 0) ? Math.round(obj.size * 1048576) : 0;
     const t = typeof obj.date === 'string' ? obj.date.trim() : '';
     items.push({ n, d: '外链', s, t, l });
   }
@@ -72,7 +73,10 @@ function renderHtml(files){
     const lis = list.map(f => {
       const href = f.l ? f.l : ('/' + ((f.d ? f.d + '/' : '') + f.n).split('/').map(encodeURIComponent).join('/'));
       const ext = f.l ? ' <span class="ext">外链</span>' : '';
-      const size = f.s > 0 ? fmtSize(f.s) : '未知';
+      // 外链文件按 MB 显示（JSON 里就是 MB）；本地文件自适应 KB/MB/GB
+      const size = f.l
+        ? (f.s > 0 ? (f.s / 1048576).toFixed(2) + ' MB' : '未知')
+        : (f.s > 0 ? fmtSize(f.s) : '未知');
       const meta = size + (f.t ? ' · ' + f.t : '');
       return '<li><a href="' + href + '" target="_blank" rel="noopener">' + esc(f.n) + ext + '</a><span class="meta">' + meta + '</span></li>';
     }).join('');
