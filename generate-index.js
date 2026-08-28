@@ -15,9 +15,9 @@ function toDate(d){
 }
 
 const out = [];
-/* 排除索引自身、本地辅助文件与隐藏文件（.vercel、.git 等） */
+/* 排除索引自身、本地辅助文件与隐藏文件（.vercel、.git 等）；img 为图床图片，不进列表 */
 const skip = new Set(['index.html', 'server.js', 'generate-index.js', '启动索引服务.cmd', '生成索引.cmd', 'vercel.json']);
-const skipDirs = new Set(['.git', 'node_modules', 'api']);
+const skipDirs = new Set(['.git', 'node_modules', 'api', 'img']);
 function walk(dir, relBase){
   for(const ent of fs.readdirSync(dir, { withFileTypes: true })){
     if(ent.name.startsWith('_') || ent.name.startsWith('.')) continue;
