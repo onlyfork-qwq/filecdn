@@ -192,6 +192,9 @@
     color:var(--c);background:color-mix(in srgb,var(--c) 13%,#fff);
     border:1px solid color-mix(in srgb,var(--c) 30%,transparent);
     padding:4px 9px;border-radius:999px;white-space:nowrap}
+  .badge-row{display:flex;gap:4px;align-items:flex-start;margin-left:auto}
+  .badge-row .badge{margin-left:0}
+  .badge.ext{background:#E8734A;border-color:#E8734A;color:#fff}
   .file-name{font-size:15px;font-weight:700;line-height:1.42;color:var(--ink);
     display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
     word-break:break-all}
@@ -337,7 +340,7 @@
    ============================================================ */
 
 const FILES = [
-
+  {n:"示例-外链文件.json", d:"external", s:122, t:"2026-08-28"},
 ];
 
 /* 数据源：默认使用内置数据（生成器写入）；若由 server.js 提供页面则自动请求 /api/files 实时更新 */
@@ -488,13 +491,15 @@ function cardHTML(f, i){
       title="点击打开：${relPath(f)}">
     <div class="card-top">
       <div class="icon-tile">${S(iconFor(f))}</div>
-      <span class="badge">${label.toUpperCase()}</span>
+      <div class="badge-row">
+        ${f.l ? '<span class="badge ext">外链</span>' : ''}
+        <span class="badge">${label.toUpperCase()}</span>
+      </div>
     </div>
     <h3 class="file-name">${f.n}</h3>
     <div class="card-meta">
-      <span class="size">${fmtSize(f.s)}</span>
-      <span class="sep">·</span>
-      <span>${f.t}</span>
+      <span class="size">${f.l ? (f.s > 0 ? (f.s/1048576).toFixed(2) + ' MB' : '未知') : (f.s > 0 ? fmtSize(f.s) : '未知')}</span>
+      ${f.t ? '<span class="sep">·</span><span>' + f.t + '</span>' : ''}
     </div>
     <div class="card-foot">
       <span class="folder-chip">${S(ICONS.folder)}<span>${folderTxt}</span></span>
@@ -566,6 +571,7 @@ function refresh(){
     const f = byPath.get(card.dataset.path);
     if(!f) return;
     const openFile = () => {
+      if(f.l){ try{ window.open(f.l, "_blank"); }catch(err){} return; }
       openRel(f);
     };
     card.addEventListener("click", e => {
@@ -584,9 +590,9 @@ function refresh(){
 }
 
 function copyPath(f){
-  const winPath = relPath(f).replace(/\//g, "\\");
-  (navigator.clipboard ? navigator.clipboard.writeText(winPath) : Promise.reject())
-    .then(() => showToast("已复制路径：" + winPath))
+  const txt = f.l ? f.l : relPath(f).replace(/\//g, "\\");
+  (navigator.clipboard ? navigator.clipboard.writeText(txt) : Promise.reject())
+    .then(() => showToast(f.l ? "已复制外链：" + txt : "已复制路径：" + txt))
     .catch(() => showToast("复制失败，请手动选择"));
 }
 
