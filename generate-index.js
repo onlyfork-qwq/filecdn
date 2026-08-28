@@ -15,9 +15,11 @@ function toDate(d){
 }
 
 const out = [];
-/* 排除索引自身、本地辅助文件与隐藏文件（.vercel、.git 等）；img 为图床图片，不进列表 */
+/* 排除索引自身、本地辅助文件与隐藏文件（.vercel、.git 等）
+   GUI 列表需要显示 img/（图床图片），故生成器不排除 img；
+   排除 img 仅发生在 API（api/files.js、server.js 的 /api/files）返回给博客 /gui 时。 */
 const skip = new Set(['index.html', 'server.js', 'generate-index.js', '启动索引服务.cmd', '生成索引.cmd', 'vercel.json']);
-const skipDirs = new Set(['.git', 'node_modules', 'api', 'img']);
+const skipDirs = new Set(['.git', 'node_modules', 'api']);
 function walk(dir, relBase){
   for(const ent of fs.readdirSync(dir, { withFileTypes: true })){
     if(ent.name.startsWith('_') || ent.name.startsWith('.')) continue;
