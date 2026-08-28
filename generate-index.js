@@ -4,6 +4,7 @@
    流程：放好文件 -> 运行本生成器 -> 部署整个文件夹到云端静态托管。 */
 const fs = require('fs');
 const path = require('path');
+const { execFileSync } = require('child_process');
 
 const root = __dirname;
 const htmlFile = path.join(root, 'index.html');
@@ -40,6 +41,27 @@ out.sort((a, b) => {
   if(a.d !== b.d) return a.d.localeCompare(b.d, 'zh');
   return a.n.localeCompare(b.n, 'zh');
 });
+
+/* 用 git 提交时间生成 files-meta.json（构建环境有 .git 时可用），
+   供 API 显示真实日期，避免 Vercel 打包盖的统一时间戳(如 2018-10-20)。 */
+function gitDate(rel){
+  try{
+    const out = execFileSync('git', ['log','-1','--format=%ci','--', rel], { encoding:'utf8', cwd: root }).trim();
+    const m = out.match(/^\d{4}-\d{2}-\d{2}/);
+    if(m) return m[0];
+  }catch(e){}
+  return null;
+}
+const meta = {};
+out.forEach(f => {
+  const rel = f.d ? f.d + '/' + f.n : f.n;
+  const gd = gitDate(rel);
+  if(gd) meta[rel] = gd;
+});
+if(Object.keys(meta).length){
+  fs.writeFileSync(path.join(root, 'files-meta.json'), JSON.stringify(meta), 'utf8');
+  console.log('files-meta.json written: ' + Object.keys(meta).length + ' entries (git commit dates)');
+}
 
 const html = fs.readFileSync(htmlFile, 'utf8');
 const s = html.indexOf('const FILES = [');
